@@ -4,9 +4,9 @@ object Main {
 
   def sequence[A](oas: List[Option[A]]): Option[List[A]] = oas match {
     case Nil => Some(Nil)
-    case (x::xs) => map2(x, sequence(xs))((a, as) => a::as)
+    case (x::xs) => map2(x, sequence(xs))(_ :: _)
   }
-    
+
   def main(args: Array[String]): Unit = {
     val loOk = List(Option(1), Option(2), Option(3))
     val loNg = List(Option(1), None, Option(3))
