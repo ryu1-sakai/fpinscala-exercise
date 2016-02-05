@@ -13,7 +13,8 @@ trait Stream[+A] {
     } else {
       this match {
         case Empty => Empty
-        case Cons(h, t) => Cons(h, () => t().take(n-1))
+        case Cons(h, t) if n == 1 => Cons(h, () => Empty)
+        case Cons(h, t)  => Cons(h, () => t().take(n-1))
       }
     }
   }
@@ -56,12 +57,16 @@ object Stream {
 
 import Stream._
 
-println(Cons(() => { println("Hello"); 1 }, () => cons(2, empty)).toList)
+// println(Cons(() => { println("Hello"); 1 }, () => cons(2, empty)).toList)
 
-println(cons(1, cons(2, Cons(() => { println("FFFFFFFFF"); 3 }, () => empty))).take(2).toList)
+// println(cons(1, cons(2, Cons(() => { println("FFFFFFFFF"); 3 }, () => empty))).take(2).toList)
 
-println(Cons(() => { println("!!!!!!!!"); 1 },() => cons(2, cons(3, empty))).drop(2).toList)
+// println(Cons(() => { println("!!!!!!!!"); 1 },() => cons(2, cons(3, empty))).drop(2).toList)
 
-println(Cons(() => { println("22222"); -2 }, () => cons(-1, cons(0, cons(1, empty)))).takeWhile(_ <= 0).toList)
+// println(Cons(() => { println("22222"); -2 }, () => cons(-1, cons(0, cons(1, empty)))).takeWhile(_ <= 0).toList)
 
-println(cons(1, cons(2, Cons(() => { println("FFFFFFFFF"); 3 }, () => { println("EMPTY"); Empty }))).take(3))
+// println(cons(1, cons(2, Cons(() => { println("FFFFFFFFF"); 3 }, () => { println("EMPTY"); Empty }))).take(3))
+
+println(cons(1, cons(2, {println("CONS3"); cons(3, empty)})).take(2).toList)
+
+println(cons(1, cons(2, {println("CONS3"); cons(3, empty)})).drop(2))
