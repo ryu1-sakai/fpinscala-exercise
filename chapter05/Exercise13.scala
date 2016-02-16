@@ -20,10 +20,9 @@ trait Stream[+A] {
 
   def forAll2(p: A => Boolean): Boolean = foldRight(true)((a, b) => p(a) && b)
 
-  def take(n: Int): Stream[A] = this match {
-    case Cons(h, t) if n > 1 => cons(h(), t().take(n - 1))
-    case Cons(h, _) if n == 1 => cons(h(), empty)
-    case _ => empty
+  def take(n: Int): Stream[A] = unfold((this, n)){
+    case (Cons(h, t), n) => if (n == 0) None else  Some((h(), (t(), n - 1)))
+    case _ => None
   }
 
   def drop(n: Int): Stream[A] = {
@@ -37,7 +36,10 @@ trait Stream[+A] {
     }
   }
 
-  def takeWhile(p: A => Boolean): Stream[A] = foldRight[Stream[A]](empty)((h, t) => if (p(h)) cons(h, t) else empty)
+  def takeWhile(p: A => Boolean): Stream[A] = unfold(this){
+    case Cons(h, t) => if (p(h())) Some((h(), t())) else None
+    case _ => None
+  }
 
   def headOption: Option[A] = foldRight(None:Option[A])((h, t) => Some(h))
 
@@ -51,6 +53,18 @@ trait Stream[+A] {
   def append[B >: A](s: => Stream[B]): Stream[B] = foldRight(s)((h, t) => cons(h, t))
 
   def flatMap[B](f: A => Stream[B]): Stream[B] = foldRight(empty[B])((h, t) => f(h).append(t))
+
+  def zipWith[B, C](s: Stream[B])(f: (A, B) => C):Stream[C] = unfold((this, s)) {
+    case (Cons(ha, ta), Cons(hb, tb)) => Some((f(ha(), hb()), (ta(), tb())))
+    case _ => None
+  }
+
+  def zipAll[B](s2: Stream[B]): Stream[(Option[A], Option[B])] = unfold((this, s2)) {
+    case (Cons(ha, ta), Cons(hb, tb)) => Some(((Some(ha()), Some(hb())), (ta(), tb())))
+    case (Empty, Cons(hb, tb)) => Some((None, Some(hb())), (Empty, tb()))
+    case (Cons(ha, ta), Empty) => Some((Some(ha()), None), (ta(), Empty))
+    case _ => None
+  }
 }
 case object Empty extends Stream[Nothing]
 case class Cons[+A](h: () => A, t: () => Stream[A]) extends Stream[A]
@@ -86,3 +100,19 @@ object Stream {
 
 import Stream._
 println(Stream(1, 2, 3).map(n => n * n).toList)
+println(cons(1, cons(2, cons({println("XXX"); 3}, empty))).take(2).toList)
+println(cons(1, cons(2, cons({println("XXX"); 3}, empty))).take(3).toList)
+println(cons(1, cons(2, cons({println("XXX"); 3}, empty))).take(10).toList)
+println(empty.take(3))
+println("=" * 10)
+println(cons(1, cons(2, cons({println("XXX"); 3}, cons({println("YYY"); 2}, empty)))).takeWhile(_ <= 2).toList)
+println(cons(1, cons(2, cons({println("XXX"); 3}, empty))).takeWhile(_ <= 3).toList)
+println(cons(1, cons(2, cons({println("XXX"); 3}, empty))).takeWhile(_ <= 10).toList)
+println(empty[Int].takeWhile(_ <= 3))
+println("=" * 10)
+println(Stream(1, 2, 3).zipWith(Stream(4, 5, 6))(_ * _).toList)
+println(Stream(1, 2, 3, 4).zipWith(Stream(4, 5, 6))(_ * _).toList)
+println(Stream(1, 2, 3).zipWith(Stream(4, 5, 6, 7))(_ * _).toList)
+println(empty[Int].zipWith(Stream(1))(_ * _))
+println("=" * 10)
+println(Stream(1, 2, 3).zipAll(Stream(4, 5)).toList)
