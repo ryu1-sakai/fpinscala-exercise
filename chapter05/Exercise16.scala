@@ -89,8 +89,19 @@ sealed trait Stream[+A] {
     case Empty => None
   }.append(Stream(z))
 
-  def scanRight2[B](z: => B)(f: (A, => B) => B): Stream[B]  = foldRight(Stream(z))((a, s) => cons(f(a, s.headOption.get), s))
+  def scanRight2[B](z: => B)(f: (A, => B) => B): Stream[B]  =
+    foldRight(Stream(z))((a, s) => {
+      lazy val s1 = s
+      cons(f(a, s1.headOption.get), s1)
+    })
 
+  def scanRight3[B](z: B)(f: (A, => B) => B): Stream[B] =
+    foldRight((z, Stream(z)))((a, p0) => {
+      // p0 is passed by-name and used in by-name args in f and cons. So use lazy val to ensure only one evaluation...
+      lazy val p1 = p0
+      val b2 = f(a, p1._1)
+      (b2, cons(b2, p1._2))
+    })._2
 }
 case object Empty extends Stream[Nothing]
 case class Cons[+A](h: () => A, t: () => Stream[A]) extends Stream[A]
@@ -131,3 +142,5 @@ println(ones.scanRight(empty[Int])(cons(_, _)).take(1).map(_.take(2).toList).toL
 
 println(Stream(1,2,3).scanRight2(0)(_ + _).toList)
 println(ones.scanRight2(empty[Int])(cons(_, _)).take(1).map(_.take(2).toList).toList)
+
+println(Stream(1,2,3).scanRight2(0)((x,y) => { println("HOGE"); x + y }).take(2).toList)
