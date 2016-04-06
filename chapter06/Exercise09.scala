@@ -50,19 +50,9 @@ object SimpleRNG {
     rng => (a, rng)
   }
 
-  def map[A, B](s: Rand[A])(f: A => B): Rand[B] =
-    rng => {
-      val (a, rng2) = s(rng)
-      (f(a), rng2)
-    }
+  def map[A, B](s: Rand[A])(f: A => B): Rand[B] = flatMap(s)(a => unit(f(a)))
 
-  def map2[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] = {
-    rng => {
-      val (a, rng2) = ra(rng)
-      val (b, rng3) = rb(rng2)
-      (f(a, b), rng3)
-    }
-  }
+  def map2[A, B, C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] = flatMap(ra)(a => flatMap(rb)(b => unit(f(a, b))))
 
   def sequence[A](fs: List[Rand[A]]): Rand[List[A]] = {
     rng => fs match {
@@ -100,7 +90,9 @@ object SimpleRNG {
 
 import SimpleRNG._
 
-val rng = SimpleRNG(42)
-val (is, rng2) = sequence(List.fill(1000)(nonNegativeIntLessThan(Math.pow(2, 30).toInt + 10)))(rng)
-println(is)
+val rng = SimpleRNG(100)
 
+val (i, rng2) = map(int)(x => x.toString + "hoge")(rng)
+println(i)
+val (i2, rng3) = map2(int, double)((n, d) => n.toString + "hoge" + d.toString)(rng)
+println(i2)
