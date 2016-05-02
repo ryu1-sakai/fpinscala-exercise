@@ -89,20 +89,9 @@ object SimpleRNG {
 
 
 case class State[S, +A](run: S => (A, S)) {
-  def map[B](f: A => B): State[S, B] = State[S, B] {
-    s => {
-      val (a, s1) = this.run(s)
-      (f(a), s1)
-    }
-  }
+  def map[B](f: A => B): State[S, B] = this.flatMap(a => State.unit(f(a)))
 
-  def map2[B](f: (A, A) => B): State[S, B] = State[S, B] {
-    s => {
-      val (a1, s1) = this.run(s)
-      val (a2, s2) = this.run(s1)
-      (f(a1, a2), s2)
-    }
-  }
+  def map2[B, C](sb: State[S, B])(f: (A, B) => C): State[S, C] = this.flatMap(a => sb.map(b => f(a, b)))
 
   def flatMap[B](f: A => State[S, B]): State[S, B] = State[S, B] {
     s => {
@@ -115,21 +104,13 @@ case class State[S, +A](run: S => (A, S)) {
 object State {
   def unit[S, A](a: A): State[S, A] = State[S, A] {s => (a, s)}
 
-  def sequence[S, A](ss: List[State[S, A]]): State[S, List[A]] = State {
-    s => ss match {
-      case Nil => (Nil, s)
-      case h::t => {
-        val (a, s1) = h.run(s)
-        val (as, s2) = sequence(t).run(s1)
-        (a::as, s2)
-      }
-    }
-  }
+  def sequence[S, A](ss: List[State[S, A]]): State[S, List[A]]
+  = ss.foldRight(State.unit[S, List[A]](List[A]()))((s, sl) => s.map2(sl)((a, al) => a::al) )
 }
 
 val randomInt = State[RNG, Int] {r => r.nextInt}
 val randomDouble = randomInt.map(x => x / (Int.MaxValue.toDouble + 1))
-val randomInt2 = randomInt.map2((x, y) => (x, y))
+val randomIntDouble = randomInt.map2(randomDouble)((i, d) => (i, d))
 
 def randomNonNegativeIntLessThan(n: Int): State[RNG, Int] = randomInt.flatMap {
   x => {
@@ -156,8 +137,8 @@ val (d1, r3) = randomDouble.run(r2)
 val (d2, r4) = randomDouble.run(r3)
 println(d1, d2)
 
-val (ii, r5) = randomInt2.run(r4)
-println(ii)
+val (id, r5) = randomIntDouble.run(r4)
+println(id)
 
 val (i3, r6) = randomNonNegativeIntLessThan(200).run(r5)
 val (i4, r7) = randomNonNegativeIntLessThan(200).run(r6)
