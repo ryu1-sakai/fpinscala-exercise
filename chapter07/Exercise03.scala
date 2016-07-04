@@ -13,6 +13,31 @@ object Par {
     def cancel(evenIfRunning: Boolean): Boolean = false
   }
 
+  private case class BinaryFuture[A, B, C](a: Future[A], b: Future[B], f: (A, B) => C) extends Future[C] {
+    def isDone = a.isDone && b.isDone
+    def get = f(a.get, b.get)
+    def get(timeout: Long, units: TimeUnit) = {
+      val startNanos = System.nanoTime
+      val av = try {
+        a.get(timeout, units)
+      } catch {
+        case e: Throwable => {
+          b.cancel(true)
+          throw e
+        }
+      }
+      val elapsedNanos = System.nanoTime - startNanos
+      val restNanos = units.toNanos(timeout) - elapsedNanos
+      val bv = b.get(restNanos, TimeUnit.NANOSECONDS)
+      f(av, bv)
+    }
+    def isCancelled = a.isCancelled || b.isCancelled
+    def cancel(evenIfRunning: Boolean) = {
+      if (!a.cancel(evenIfRunning) && !a.isDone) false
+      else b.cancel(evenIfRunning)
+    }
+  }
+
   def unit[A](a: => A): Par[A] = _ => UnitFuture(a)
 
 
